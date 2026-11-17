@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>音量检测-高二14班</title>
+<style>
+  /* ========= 设计令牌（扁平化：纯色、无渐变、无阴影、无发光） ========= */
+  :root,[data-theme="dark"]{
+    --bg:#0f1115; --card:#181b22; --statcard:#1f232c; --line:#2a2f3a;
+    --txt:#eef1f6; --sub:#9aa6ba; --dim:#5b6577;
+    --plot:#12151b; --meterbg:#12151b;
+    --ok:#2ecc71; --warn:#f1c40f; --bad:#e74c3c; --accent:#3498db;
+    --track:#2a2f3a;
+  }
+  [data-theme="light"]{
+    --bg:#f4f6f8; --card:#ffffff; --statcard:#eef1f5; --line:#d8dee7;
+    --txt:#1a2230; --sub:#55627a; --dim:#95a0b3;
+    --plot:#eef1f5; --meterbg:#eef1f5;
+    --ok:#27ae60; --warn:#e0a800; --bad:#e03a3a; --accent:#2080c0;
+    --track:#d8dee7;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  ::selection{background:var(--accent);color:#fff}
+
+  body{
+    background:var(--bg);
+    color:var(--txt); min-height:100vh;
+    font-family:"Inter","PingFang SC","HarmonyOS Sans SC","Microsoft YaHei","Hiragino Sans GB","Noto Sans CJK SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+    font-feature-settings:"tnum" 1;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    display:flex;flex-direction:column;align-items:center;padding:18px 14px 40px;
+    transition:background .3s ease,color .3s ease;
+  }
+
+  /* ========= 顶部标题 ========= */
+  header{width:100%;max-width:1040px;text-align:center;margin-bottom:14px}
+  header h1{
+    margin:0;
+    font-size:clamp(20px,4.4vw,30px);
+    letter-spacing:3px;
+    font-weight:800;
+    color:var(--txt);
+    padding-left:3px;
+  }
+  header .subtitle{
+    margin-top:7px;font-size:12.5px;letter-spacing:3px;
+    color:var(--dim);font-weight:500;
+  }
+
+  .wrap{width:100%;max-width:1040px;display:flex;flex-direction:column;gap:14px}
+
+  /* ========= 卡片 ========= */
+  .card{
+    position:relative;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px;
+    box-shadow:none;
+    transition:background .3s ease,border-color .3s ease;
+  }
+  .card h2{
+    margin:0 0 12px;font-size:14px;font-weight:700;color:var(--sub);letter-spacing:1.5px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .card h2::before{
+    content:"";width:4px;height:14px;
+    background:var(--accent);
+    display:inline-block;
+  }
+
+  /* ========= 顶部两栏 ========= */
+  .toprow{display:flex;flex-direction:column;gap:14px}
+
+  /* ========= 倒计时条 ========= */
+  .cdown{
+    display:flex;align-items:center;justify-content:center;gap:12px;width:100%;
+    margin-bottom:14px;padding:10px 14px;border-radius:8px;
+    background:var(--statcard);
+    border:1px solid var(--line);
+  }
+  .cdlabel{font-size:13px;color:var(--sub);letter-spacing:3px;font-weight:600}
+  .cdval{
+    font-size:clamp(30px,7vw,46px);font-weight:800;letter-spacing:1px;
+    font-variant-numeric:tabular-nums;color:var(--accent);line-height:1;
+    transition:color .3s ease;
+  }
+  .cdval.done{color:var(--bad)}
+
+  /* ========= 竖向音量灯 + 读数 ========= */
+  .meterbox{display:flex;flex-direction:column;align-items:center}
+  .meterRow{display:flex;align-items:flex-end;justify-content:center;gap:24px;width:100%}
+  .vmeter{
+    position:relative;flex:0 0 auto;padding:10px 8px;border-radius:8px;
+    background:var(--meterbg);
+    border:1px solid var(--line);
+    margin-right:52px;
+    transition:background .3s ease,border-color .3s ease;
+  }
+  #vmeter{display:block;width:104px;height:300px}
+  .vscale{position:absolute;top:10px;bottom:10px;right:-50px;width:46px;
+          font-size:10px;color:var(--dim);font-variant-numeric:tabular-nums;letter-spacing:.4px}
+  .vscale span{position:absolute;left:0;transform:translateY(-50%);white-space:nowrap}
+  .readcol{flex:0 0 auto;text-align:center;padding-bottom:10px;min-width:132px}
+  .num{
+    font-size:clamp(54px,14vw,86px);font-weight:800;line-height:1;
+    font-variant-numeric:tabular-nums;letter-spacing:-3px;
+    transition:color .3s ease;
+  }
+  .num small{font-size:.26em;font-weight:600;color:var(--dim);margin-left:4px;letter-spacing:1px}
+  .badge{
+    margin-top:12px;display:inline-block;padding:6px 16px;border-radius:999px;font-size:14px;
+    font-weight:700;letter-spacing:2px;border:1px solid transparent;
+    transition:color .3s ease,background .3s ease,border-color .3s ease;
+  }
+  .b-ok  {color:var(--ok);  background:var(--card);  border-color:var(--ok)}
+  .b-warn{color:var(--warn);background:var(--card);  border-color:var(--warn)}
+  .b-bad {color:#fff;       background:var(--bad);   border-color:var(--bad)}
+  .b-idle{color:var(--dim); background:var(--card);  border-color:var(--line)}
+
+  canvas#trend{
+    width:100%;height:80px;display:block;margin-top:18px;border-radius:8px;
+    background:var(--plot);
+    border:1px solid var(--line);
+  }
+
+  /* ========= 统计 ========= */
+  .stats{width:100%}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .stat{
+    background:var(--statcard);
+    border:1px solid var(--line);border-radius:8px;padding:12px 8px;text-align:center;
+    transition:background .3s ease,border-color .3s ease;
+  }
+  .stat:hover{border-color:var(--accent)}
+  .stat b{
+    display:block;font-size:clamp(17px,4.2vw,22px);font-weight:800;
+    font-variant-numeric:tabular-nums;letter-spacing:-.5px;color:var(--txt);
+  }
+  .stat span{display:block;margin-top:4px;font-size:11px;color:var(--sub);letter-spacing:.6px}
+
+  /* ========= 安静分横条 ========= */
+  .scorebox{
+    margin-top:16px;padding:16px 14px;border-radius:8px;
+    background:var(--statcard);
+    border:1px solid var(--line);
+  }
+  .scoreHead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+  .scoreHead b{font-size:15px;letter-spacing:1.5px;font-weight:700}
+  .scoreHead span{font-size:12px;color:var(--dim)}
+  .scoreBar{
+    position:relative;height:14px;border-radius:999px;background:var(--track);
+    overflow:hidden;
+  }
+  .scoreFill{
+    position:absolute;left:0;top:0;bottom:0;width:0%;border-radius:999px;
+    background:linear-gradient(90deg,#e03a3a,#e0a800,#27ae60);
+    transition:width .8s cubic-bezier(.22,.61,.36,1);
+  }
+  .scoreBar i{position:absolute;top:50%;width:4px;height:4px;border-radius:50%;
+              background:var(--card);
+              transform:translate(-50%,-50%);pointer-events:none;z-index:2}
+  .scoreMeta{display:flex;align-items:center;justify-content:space-between;margin-top:12px;gap:10px}
+  .scoreNum2{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;flex:0 0 auto;letter-spacing:-.5px}
+  .scoreNum2 small{font-size:11px;color:var(--dim);font-weight:600;margin-left:2px;letter-spacing:.6px}
+  .grade{
+    display:inline-block;font-size:14px;font-weight:800;letter-spacing:1.5px;padding:4px 14px;border-radius:999px;
+    background:var(--accent);color:#fff;border:1px solid var(--accent);
+  }
+  .grade.idle{background:var(--track);color:var(--sub);border-color:var(--line)}
+  .scoreTip{font-size:12.5px;color:var(--sub);letter-spacing:.5px;line-height:1.5;text-align:right;flex:1}
+
+  /* ========= 控制 ========= */
+  .btns{display:flex;gap:10px;flex-wrap:wrap}
+  button{
+    flex:1;min-width:120px;padding:14px 12px;font-size:16px;font-weight:700;border-radius:8px;
+    border:1px solid var(--line);
+    background:var(--card);
+    color:var(--txt);cursor:pointer;font-family:inherit;letter-spacing:.6px;
+    transition:background .2s ease,color .2s ease,border-color .2s ease;
+  }
+  button:hover{background:var(--statcard);border-color:var(--accent)}
+  button:active{filter:brightness(.94)}
+  button:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+  #btnStart{background:var(--accent);border-color:var(--accent);color:#fff}
+  #btnStart:hover{filter:brightness(1.1)}
+  #btnStop{background:var(--bad);border-color:var(--bad);color:#fff}
+  #btnStop:hover{filter:brightness(1.1)}
+  button.ghost{
+    flex:0 0 auto;min-width:88px;font-size:14px;padding:10px 14px;
+    color:var(--sub);background:var(--card);border-color:var(--line);
+  }
+  button.ghost:hover{color:var(--txt)}
+
+  .field{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+  .field label{flex:0 0 92px;font-size:13px;color:var(--sub);letter-spacing:.5px;font-weight:600}
+  .field output{
+    flex:0 0 62px;text-align:right;font-size:14px;font-weight:800;
+    font-variant-numeric:tabular-nums;color:var(--accent);letter-spacing:.4px;
+  }
+  input[type=time],select{
+    flex:1;padding:9px 12px;border-radius:8px;
+    background:var(--card);
+    border:1px solid var(--line);color:var(--txt);
+    font-size:14px;font-family:inherit;
+    transition:border-color .2s ease;
+  }
+  input[type=time]:focus,select:focus{outline:none;border-color:var(--accent)}
+
+  .switch{
+    width:46px;height:26px;border-radius:999px;
+    background:var(--track);position:relative;cursor:pointer;
+    transition:background .2s ease;flex:0 0 auto;
+  }
+  .switch::after{
+    content:"";position:absolute;top:50%;left:3px;width:20px;height:20px;border-radius:50%;
+    background:#fff;
+    transform:translateY(-50%);
+    transition:transform .2s ease;
+  }
+  .switch.on{background:var(--accent)}
+  .switch.on::after{transform:translateY(-50%) translateX(20px)}
+
+  /* ========= 自绘滑块 ========= */
+  .iosTrack{
+    position:relative;flex:1;height:12px;border-radius:999px;
+    background:var(--track);cursor:pointer;touch-action:none;
+  }
+  .iosTrack .dot{
+    position:absolute;top:50%;width:5px;height:5px;border-radius:50%;
+    background:var(--dim);
+    transform:translate(-50%,-50%);opacity:.55;pointer-events:none;
+  }
+  .iosThumb{
+    position:absolute;top:50%;width:18px;height:18px;border-radius:50%;transform:translate(-50%,-50%);
+    background:var(--card);
+    border:3px solid var(--accent);cursor:grab;
+    transition:border-color .2s ease;
+  }
+  .iosThumb:active{cursor:grabbing}
+
+  /* ========= 参照表 ========= */
+  table{width:100%;border-collapse:collapse;font-size:13px;border:1px solid var(--line)}
+  th{background:var(--statcard);color:var(--txt);font-weight:700;letter-spacing:1px;font-size:12px}
+  th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;color:var(--sub)}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--statcard)}
+  td:first-child{color:var(--txt);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;width:82px}
+
+  .tip{font-size:12px;color:var(--dim);line-height:1.75;margin:0}
+  .tip b{color:var(--sub);font-weight:700}
+  .msg{
+    display:none;margin-bottom:14px;padding:12px 14px;border-radius:8px;font-size:13px;line-height:1.6;
+    background:var(--bad);color:#fff;border:1px solid var(--bad);
+  }
+  .msg.show{display:block}
+
+  body.focus .no-focus{display:none!important}
+
+  footer{margin-top:8px;color:var(--dim);font-size:11px;text-align:center;letter-spacing:1px}
+
+  /* ========= 横屏：统计移到音量灯右边 ========= */
+  @media (orientation:landscape) and (min-width:680px){
+    .toprow{flex-direction:row;align-items:stretch}
+    .toprow .meterbox{flex:0 0 auto}
+    .toprow .stats{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
+    .toprow .grid{grid-template-columns:repeat(3,1fr)}
+    #vmeter{height:236px}
+    body.focus .toprow .stats{display:flex!important}
+  }
+  @media (max-width:520px){
+    .grid{grid-template-columns:repeat(2,1fr)} .field label{flex-basis:74px}
+    .meterRow{gap:12px} .vmeter{margin-right:44px} #vmeter{width:88px;height:252px}
+    .vscale{right:-42px;width:38px}
+  }
+
+  /* ========= 超标日志 ========= */
+  .logList{display:flex;flex-direction:column;gap:16px;max-height:360px;overflow-y:auto;padding-right:2px}
+  .logGroup{display:flex;flex-direction:column;gap:8px}
+  .logGroupTitle{font-size:12px;color:var(--sub);font-weight:700;letter-spacing:.5px;
+    padding:2px 2px 6px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+  .logEmpty{font-size:13px;color:var(--dim);padding:18px 0;text-align:center;letter-spacing:.5px}
+  .logItem{display:flex;align-items:center;gap:14px;padding:10px 13px;border-radius:10px;
+    background:var(--statcard);border:1px solid var(--line);font-size:13px}
+  .logIdx{color:var(--dim);font-weight:700;min-width:22px;font-variant-numeric:tabular-nums}
+  .logTime{font-variant-numeric:tabular-nums;font-weight:700;min-width:74px;color:var(--txt)}
+  .logDur{color:var(--sub);flex:1}
+  .logDb{color:var(--bad);font-weight:700;font-variant-numeric:tabular-nums;min-width:54px;text-align:right}
+  #logCard h2 .logCount{color:var(--dim);font-weight:600;font-size:14px;margin-left:6px;letter-spacing:0}
+
+  /* ========= 减弱动效 ========= */
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>音量检测</h1>
+  <div class="subtitle">高二14班专用</div>
+</header>
+
+<div class="wrap">
+
+  <div class="msg" id="msg"></div>
+
+  <div class="toprow">
+    <!-- 竖向音量灯 -->
+    <section class="card meterbox">
+      <div class="meterRow">
+        <div class="vmeter">
+          <canvas id="vmeter"></canvas>
+          <div class="vscale" id="vscale"></div>
+        </div>
+        <div class="readcol">
+          <div class="num" id="spl">--<small>dB</small></div>
+          <div class="badge b-idle" id="badge">等待开始</div>
+        </div>
+      </div>
+
+      <canvas id="trend"></canvas>
+    </section>
+
+    <!-- 统计 -->
+    <section class="card stats">
+      <h2>本节课统计</h2>
+      <div class="cdown" style="margin-bottom:14px">
+        <span class="cdlabel" id="cdlabel">距下课</span>
+        <span class="cdval" id="cdval">--:--:--</span>
+      </div>
+      <div class="grid">
+        <div class="stat"><b id="sAvg">--</b><span>平均音量 dB</span></div>
+        <div class="stat"><b id="sMax">--</b><span>峰值音量 dB</span></div>
+        <div class="stat"><b id="sMin">--</b><span>最长安静时间</span></div>
+        <div class="stat"><b id="sQuiet">--</b><span>安静时长占比</span></div>
+        <div class="stat"><b id="sOver">0</b><span>超标次数</span></div>
+        <div class="stat"><b id="sTime">00:00</b><span>已监测时长</span></div>
+      </div>
+      <div class="scorebox">
+        <div class="scoreHead"><b>班级安静分</b><span id="scoreHint">开始监测后实时评估</span></div>
+        <div class="scoreBar" id="scoreBar">
+          <div class="scoreFill" id="scoreFill"></div>
+        </div>
+        <div class="scoreMeta">
+          <span class="scoreNum2"><span id="scoreVal">--</span><small>分</small></span>
+          <span class="grade idle" id="grade">待评估</span>
+          <span class="scoreTip" id="scoreTip">—</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 控制 -->
+  <section class="card">
+    <div class="btns" style="margin-bottom:16px">
+      <button id="btnStart">开始监测</button>
+      <button id="btnStop" style="display:none">停止</button>
+      <button class="ghost no-focus" id="btnReset">清零</button>
+      <button class="ghost" id="btnTheme">深色模式</button>
+      <button class="ghost" id="btnFocus">专注大屏</button>
+    </div>
+
+    <div class="field no-focus">
+      <label>晚自习时段</label>
+      <select id="session">
+        <option value="auto" selected>自动匹配下课时段</option>
+        <option value="custom">自选下课时间</option>
+      </select>
+    </div>
+    <div class="field no-focus" id="customTimeRow" style="display:none">
+      <label>自选时间</label>
+      <input type="time" id="endTime" value="21:30">
+    </div>
+    <div class="field no-focus">
+      <label>提醒场景</label>
+      <select id="preset">
+        <option value="45" selected>安静自习（阈值 45 dB）</option>
+        <option value="52">独立作业（阈值 52 dB）</option>
+        <option value="60">轻声讨论（阈值 60 dB）</option>
+        <option value="70">课间自由（阈值 70 dB）</option>
+      </select>
+    </div>
+    <div class="field no-focus">
+      <label>超标阈值</label>
+      <div class="iosTrack" id="thr"></div>
+      <output id="thrV">45 dB</output>
+    </div>
+    <div class="field no-focus">
+      <label>声级校准</label>
+      <div class="iosTrack" id="cal"></div>
+      <output id="calV">85</output>
+    </div>
+    <div class="field no-focus">
+      <label>响应速度</label>
+      <div class="iosTrack" id="sm"></div>
+      <output id="smV">平稳</output>
+    </div>
+    <div class="field no-focus" style="margin-bottom:6px">
+      <label>声音提示</label>
+      <div style="flex:1;display:flex;align-items:center;gap:10px">
+        <div class="switch" id="swSound"></div>
+        <span id="swSoundTxt" style="font-size:13px;color:var(--sub);letter-spacing:.5px;font-weight:600">已关闭</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 参照 -->
+  <section class="card no-focus">
+    <h2>音量参照标准</h2>
+    <table>
+      <tr><th>分贝</th><th>相当于</th><th>自习状态</th></tr>
+      <tr><td>30 – 40</td><td>耳语 / 翻书</td><td>非常安静，适合深度思考</td></tr>
+      <tr><td>40 – 55</td><td>轻声交流</td><td>正常自习区间</td></tr>
+      <tr><td>55 – 65</td><td>普通交谈</td><td>已影响他人，需控制</td></tr>
+      <tr><td>65 – 80</td><td>嘈杂市场</td><td>明显吵闹，注意力下降</td></tr>
+      <tr><td>&gt; 80</td><td>大声喊叫</td><td>损害听力风险，立即保持安静</td></tr>
+    </table>
+    <p class="tip" style="margin-top:12px">
+      说明：本工具用麦克风采集声音，按 RMS 声压换算为近似分贝（dBA），属于<b>相对参考值</b>，不能替代专业声级计。<br>
+      「声级校准」可整体上下平移读数：在教室安静时把读数调到 40 dB 左右即完成粗略校准。<br>
+      设置「下课时间」后，倒计时归零会自动停止监测，并在 7 分钟后自动重新开启。<br>
+      浏览器要求 HTTPS 或本地文件才能调用麦克风；第一次使用请点击「开始监测」并在弹窗中选择<b>允许</b>麦克风权限。
+    </p>
+  </section>
+
+  <!-- 超标日志 -->
+  <section class="card no-focus" id="logCard">
+    <h2>超标日志<span class="logCount" id="logCount">(0)</span></h2>
+    <div class="logList" id="logList">
+      <div class="logEmpty">暂无超标记录（连续超标达 4 秒将自动记录）</div>
+    </div>
+  </section>
+
+  <footer>Copyright © 2026 长乐一中 高二14班. 保留所有权利.</footer>
+</div>
+
+<script>
+(function(){
+  var LO=20, HI=100;                       // 量程
+  var SEG=12;                              // 音量灯格数
+  var st={running:false,ac:null,an:null,buf:null,stream:null,raf:null,
+          show:0,spl:0,thr:45,cal:94,smooth:0.55,sound:false,
+          t0:0,n:0,sum:0,max:0,min:999,quiet:0,overSec:0,over:0,above:false,lastBeep:0,
+          hist:[],lastSec:0,
+          level:0,peak:-1,dispNum:NaN,
+          dispInt:1000,lastDisp:0,quietStreak:0,maxQuiet:0,
+          logs:[],logRun:{active:false,startTime:'',startT:0,peak:0,dur:0,logged:false,entry:null}};
+
+  function Q(id){return document.getElementById(id)}
+  var spl=Q('spl'),badge=Q('badge'),trend=Q('trend'),msg=Q('msg'),vm=Q('vmeter');
+
+  /* 柱右侧的分贝刻度 */
+  (function(){
+    var s='';
+    for(var v=20;v<=100;v+=20){
+      var pct=(1-(v-LO)/(HI-LO))*100;
+      s+='<span style="top:'+pct.toFixed(1)+'%">'+v+'</span>';
+    }
+    Q('vscale').innerHTML=s;
+  })();
+
+  function showMsg(t){ msg.innerHTML=t; msg.classList.add('show'); }
+  function hideMsg(){ msg.classList.remove('show'); }
+  function clamp(v,a,b){return v<a?a:(v>b?b:v)}
+  function cssv(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function themeColors(){
+    return {ok:cssv('--ok'),warn:cssv('--warn'),bad:cssv('--bad'),
+            accent:cssv('--accent'),dim:cssv('--dim'),txt:cssv('--txt')};
+  }
+  function zone(v){
+    if(v<LO) return {t:'极其安静',c:'b-ok'};
+    if(v<=st.thr-8) return {t:'非常安静',c:'b-ok'};
+    if(v<=st.thr)   return {t:'安静',c:'b-ok'};
+    if(v<=st.thr+8) return {t:'有点吵',c:'b-warn'};
+    return {t:'太吵了！',c:'b-bad'};
+  }
+  function colorOf(db,TC){
+    if(db<=st.thr) return TC.ok;
+    if(db<=st.thr+8) return TC.warn;
+    return TC.bad;
+  }
+
+  /* ================= 竖向音量灯 ================= */
+  var vctx=vm.getContext('2d'), VW=0, VH=0;
+  function fitVMeter(){
+    var dpr=window.devicePixelRatio||1, r=vm.getBoundingClientRect();
+    vm.width=r.width*dpr; vm.height=r.height*dpr;
+    vctx.setTransform(dpr,0,0,dpr,0,0);
+    VW=r.width; VH=r.height;
+  }
+  function roundRect(c,x,y,w,h,r){
+    if(c.roundRect){ c.beginPath(); c.roundRect(x,y,w,h,r); return; }
+    c.beginPath();
+    c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+    c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+  }
+  function drawMeter(){
+    var TC=themeColors();
+    vctx.clearRect(0,0,VW,VH);
+    var h=VH/SEG, gap=Math.max(2,h*0.24), w=VW-8, x=4;
+    var want = st.running ? Math.max(0, Math.min(SEG, Math.round((st.level-LO)/(HI-LO)*SEG))) : 0;
+    var peakIdx = (st.peak>=0) ? Math.max(0, Math.min(SEG-1, Math.round((st.peak-LO)/(HI-LO)*SEG-0.5))) : -1;
+
+    for(var i=0;i<SEG;i++){
+      var y=VH-(i+1)*h+gap/2, hh=h-gap, db=LO+(i+0.5)/SEG*(HI-LO);
+      var col=colorOf(db,TC);
+      if(i<want){
+        vctx.save();
+        vctx.shadowColor=col; vctx.shadowBlur=14;
+        vctx.fillStyle=col; roundRect(vctx,x,y,w,hh,3); vctx.fill();
+        vctx.shadowBlur=0;
+        var g=vctx.createLinearGradient(0,y,0,y+hh);
+        g.addColorStop(0,'rgba(255,255,255,.5)'); g.addColorStop(.45,'rgba(255,255,255,.08)');
+        g.addColorStop(1,'rgba(0,0,0,.18)');
+        vctx.fillStyle=g; roundRect(vctx,x+1,y+1,w-2,hh-2,2.5); vctx.fill();
+        vctx.restore();
+      }else if(i===peakIdx){
+        vctx.save();
+        vctx.globalAlpha=0.5; vctx.shadowColor=col; vctx.shadowBlur=10;
+        vctx.fillStyle=col; roundRect(vctx,x,y,w,hh,3); vctx.fill();
+        vctx.restore();
+      }else{
+        vctx.strokeStyle=TC.dim; vctx.globalAlpha=0.22; vctx.lineWidth=1;
+        roundRect(vctx,x,y,w,hh,3); vctx.stroke(); vctx.globalAlpha=1;
+      }
+    }
+    var tY=VH-clamp((st.thr-LO)/(HI-LO),0,1)*SEG*h;
+    vctx.strokeStyle=(document.documentElement.getAttribute('data-theme')==='light')?'rgba(0,0,0,.6)':'rgba(255,255,255,.72)';
+    vctx.setLineDash([5,4]); vctx.lineWidth=1.6;
+    vctx.beginPath(); vctx.moveTo(0,tY); vctx.lineTo(VW,tY); vctx.stroke(); vctx.setLineDash([]);
+  }
+
+  /* ---------- 视觉主帧：平滑 + 峰值 + 读数（按响应速度节流） ---------- */
+  function meterFrame(){
+    requestAnimationFrame(meterFrame);
+    if(!VW) fitVMeter();
+    var target = st.running ? st.show : 0;
+    if(target>st.level) st.level += (target-st.level)*0.22;
+    else                st.level += (target-st.level)*0.04;
+
+    if(st.level>st.peak) st.peak = st.level;
+    else                 st.peak -= Math.max(0.12,(st.peak-st.level)*0.02+0.12);
+    if(!st.running){ st.level+=(0-st.level)*0.08; st.peak-=1.5; if(st.peak<LO-1)st.peak=-1; }
+
+    /* 读数更新节流：响应速度越“平稳”，数字刷新越慢，最慢 2 秒刷新一次 */
+    var nowD=performance.now();
+    if(isNaN(st.dispNum)){ st.dispNum=target; st.lastDisp=nowD; }
+    else if(nowD-st.lastDisp>=st.dispInt){ st.lastDisp=nowD; st.dispNum=st.level; }
+
+    renderReadout(st.dispNum);
+    drawMeter();
+  }
+
+  function renderReadout(v){
+    var TC=themeColors();
+    spl.innerHTML=Math.round(v)+'<small>dB</small>';
+    spl.style.color=v>st.thr+8?TC.bad:(v>st.thr?TC.warn:TC.txt);
+    if(st.running){ var z=zone(v); badge.textContent=z.t; badge.className='badge '+z.c; }
+  }
+
+  /* ---------- 启动 / 停止 ---------- */
+  async function start(){
+    hideMsg();
+    if(!window.isSecureContext && location.protocol!=='file:'){
+      showMsg('当前不是安全环境，浏览器禁止使用麦克风。请通过 <b>https</b> 链接或双击本地文件打开本页。');
+      return;
+    }
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      showMsg('该浏览器不支持麦克风采集，请改用 Chrome / Edge / Safari 较新版本。');
+      return;
+    }
+    try{
+      st.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+    }catch(e){
+      showMsg('无法访问麦克风：'+(e.name==='NotAllowedError'?'你点了“拒绝”，请刷新页面后重新允许。':(e.name==='NotFoundError'?'未检测到麦克风设备。':'权限或设备异常（'+e.name+'）。')));
+      return;
+    }
+    st.ac=new (window.AudioContext||window.webkitAudioContext)();
+    await st.ac.resume();
+    var src=st.ac.createMediaStreamSource(st.stream);
+    st.an=st.ac.createAnalyser(); st.an.fftSize=2048;
+    src.connect(st.an);
+    st.buf=new Float32Array(st.an.fftSize);
+    st.running=true; st.t0=performance.now(); st.lastSec=0;
+    Q('btnStart').style.display='none'; Q('btnStop').style.display='';
+    badge.className='badge b-idle'; badge.textContent='监测中';
+    loop();
+  }
+  function stop(){
+    st.running=false;
+    if(st.raf) cancelAnimationFrame(st.raf);
+    if(st.stream) st.stream.getTracks().forEach(function(t){t.stop()});
+    if(st.ac) st.ac.close();
+    st.stream=null;st.ac=null;st.an=null;
+    Q('btnStart').style.display=''; Q('btnStop').style.display='none';
+    badge.className='badge b-idle'; badge.textContent='已暂停';
+  }
+
+  /* ---------- 采样循环 ---------- */
+  function loop(){
+    if(!st.running) return;
+    st.raf=requestAnimationFrame(loop);
+    st.an.getFloatTimeDomainData(st.buf);
+    var s=0,b=st.buf;
+    for(var i=0;i<b.length;i++){ s+=b[i]*b[i]; }
+    var rms=Math.sqrt(s/b.length);
+    var dbfs=20*Math.log10(Math.max(rms,1e-7));
+    st.spl=clamp(dbfs+st.cal,0,130);
+    st.show+= (st.spl-st.show)*st.smooth;
+    var v=st.show;
+
+    var now=performance.now();
+    if(now-st.lastSec>=1000){
+      st.lastSec=now;
+      var secs=Math.round((now-st.t0)/1000);
+      st.n++; st.sum+=v; st.max=Math.max(st.max,v); st.min=Math.min(st.min,v);
+      if(v<=st.thr){
+        st.quiet++;
+        st.quietStreak++;
+        if(st.quietStreak>st.maxQuiet) st.maxQuiet=st.quietStreak;
+      }else{
+        st.quietStreak=0; st.overSec++;
+      }
+      if(v>st.thr && !st.above){ st.over++; st.above=true; if(st.sound) beep(1); }
+      else if(v<=st.thr-3) st.above=false;
+      trackOverLog(v, now);
+      st.hist.push({v:v});
+      if(st.hist.length>260) st.hist.shift();
+      renderStats(secs);
+      drawTrend();
+    }
+    if(st.sound && v>st.thr+8 && now-st.lastBeep>3000){ st.lastBeep=now; beep(0.6); }
+  }
+
+  /* ---------- 超标日志：连续超标达 4 秒记录（时间 / 实际持续时长 / 分贝数） ---------- */
+  function fmtClock(d){return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function fmtDate(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  /* ---------- 日志持久化（localStorage，每天归为一组，跨天保留并显示日期） ---------- */
+  var LOG_KEY='yzj_logs_v1';
+  function loadLogs(){try{var a=JSON.parse(localStorage.getItem(LOG_KEY)||'[]');if(Array.isArray(a))st.logs=a;}catch(e){}}
+  function saveLogs(){try{localStorage.setItem(LOG_KEY,JSON.stringify(st.logs));}catch(e){}}
+  function dateLabel(ds){
+    var today=fmtDate(new Date());
+    var y=new Date(); y.setDate(y.getDate()-1); var yest=fmtDate(y);
+    var p=ds.split('-'); var md=p[1]+'月'+p[2]+'日';
+    if(ds===today) return '今天 '+md;
+    if(ds===yest)  return '昨天 '+md;
+    var wd='日一二三四五六'[new Date(+p[0],+p[1]-1,+p[2]).getDay()];
+    return p[0]+'年'+md+' 周'+wd;
+  }
+  function trackOverLog(v,now){
+    var R=st.logRun;
+    if(v>st.thr){
+      if(!R.active){ R.active=true; R.startT=now; var _d=new Date(); R.startTime=fmtClock(_d); R.date=fmtDate(_d); R.peak=v; R.dur=0; R.logged=false; R.entry=null; }
+      if(v>R.peak) R.peak=v;
+      R.dur=Math.round((now-R.startT)/1000);
+      if(R.dur>=4){
+        if(!R.logged){
+          R.entry={date:R.date, time:R.startTime, dur:R.dur, db:Math.round(R.peak)};
+          st.logs.unshift(R.entry);
+          if(st.logs.length>1000) st.logs.pop();
+          R.logged=true;
+        }else{
+          /* 超标仍在继续：把这条日志的时长/峰值实时延长更新到实际值 */
+          R.entry.dur=R.dur; R.entry.db=Math.round(R.peak);
+        }
+        saveLogs(); renderLogs();
+      }
+    }else if(R.active){
+      /* 超标结束：最终时长/峰值已在持续期间实时同步，这里仅复位 */
+      R.active=false;
+    }
+  }
+  function renderLogs(){
+    var list=Q('logList'), cnt=Q('logCount');
+    if(cnt) cnt.textContent='('+st.logs.length+')';
+    if(!list) return;
+    if(st.logs.length===0){ list.innerHTML='<div class="logEmpty">暂无超标记录（连续超标达 4 秒将自动记录）</div>'; return; }
+    var groups=[], map={};
+    for(var i=0;i<st.logs.length;i++){
+      var e=st.logs[i], dk=e.date||fmtDate(new Date());
+      if(!map[dk]){ map[dk]={date:dk, items:[]}; groups.push(map[dk]); }
+      map[dk].items.push(e);
+    }
+    var s='';
+    for(var g=0;g<groups.length;g++){
+      var grp=groups[g], n=grp.items.length;
+      s+='<div class="logGroup"><div class="logGroupTitle">'+dateLabel(grp.date)+' · 共 '+n+' 条</div>';
+      for(var j=0;j<n;j++){
+        var it=grp.items[j];
+        s+='<div class="logItem"><span class="logIdx">'+(n-j)+'</span>'+
+           '<span class="logTime">'+it.time+'</span>'+
+           '<span class="logDur">持续 '+it.dur+' 秒</span>'+
+           '<span class="logDb">'+it.db+' dB</span></div>';
+      }
+      s+='</div>';
+    }
+    list.innerHTML=s;
+  }
+
+  /* ---------- 趋势图 ---------- */
+  function fitCanvas(){
+    var dpr=window.devicePixelRatio||1, r=trend.getBoundingClientRect();
+    trend.width=r.width*dpr; trend.height=r.height*dpr;
+    trend.getContext('2d').setTransform(dpr,0,0,dpr,0,0);
+    trend._w=r.width; trend._h=r.height;
+  }
+  function drawTrend(){
+    if(!trend._w) fitCanvas();
+    var TC=themeColors();
+    var ctx=trend.getContext('2d'),W=trend._w,H=trend._h;
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle='rgba(120,140,170,.25)';ctx.lineWidth=1;
+    for(var g=1;g<4;g++){var y=H*g/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    var ty=H-(clamp((st.thr-LO)/(HI-LO),0,1))*H;
+    ctx.strokeStyle='rgba(255,45,45,.65)';ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(0,ty);ctx.lineTo(W,ty);ctx.stroke();ctx.setLineDash([]);
+    var d=st.hist; if(d.length<2) return;
+    var step=W/259;
+    ctx.beginPath(); ctx.moveTo(W,H);
+    for(var i=0;i<d.length;i++){
+      var x=W-(d.length-1-i)*step, y=H-clamp((d[i].v-LO)/(HI-LO),0,1)*H;
+      ctx.lineTo(x,y);
+    }
+    ctx.lineTo(W-step*(d.length-1),H); ctx.closePath();
+    var grd=ctx.createLinearGradient(0,0,0,H);
+    grd.addColorStop(0, hexA(TC.accent,0.4)); grd.addColorStop(1, hexA(TC.accent,0.03));
+    ctx.fillStyle=grd; ctx.fill();
+    ctx.beginPath();
+    for(var j=0;j<d.length;j++){
+      var X=W-(d.length-1-j)*step, Y=H-clamp((d[j].v-LO)/(HI-LO),0,1)*H;
+      j?ctx.lineTo(X,Y):ctx.moveTo(X,Y);
+    }
+    ctx.strokeStyle=TC.accent;ctx.lineWidth=2;ctx.lineJoin='round';ctx.stroke();
+  }
+  function hexA(hex,a){
+    hex=(hex||'#22d3ee').replace('#','');
+    if(hex.length===3) hex=hex.split('').map(function(c){return c+c}).join('');
+    var r=parseInt(hex.substr(0,2),16),g=parseInt(hex.substr(2,2),16),b=parseInt(hex.substr(4,2),16);
+    return 'rgba('+r+','+g+','+b+','+a+')';
+  }
+
+  /* ---------- 统计 + 高端评分 ---------- */
+  function renderStats(secs){
+    if(st.n===0){
+      ['sAvg','sMax','sQuiet'].forEach(function(k){Q(k).textContent='--'});
+      Q('sMin').textContent='--';
+      Q('sOver').textContent='0'; Q('sTime').textContent=pad(Math.floor(secs/60))+':'+pad(secs%60);
+      setScore(null);
+      return;
+    }
+    var avg=st.sum/st.n;
+    Q('sAvg').textContent=Math.round(avg);
+    Q('sMax').textContent=Math.round(st.max);
+    Q('sMin').textContent=fmtMS(st.maxQuiet);
+    var q=Math.round(st.quiet/st.n*100);
+    Q('sQuiet').textContent=q+'%';
+    Q('sOver').textContent=st.over;
+    Q('sTime').textContent=pad(Math.floor(secs/60))+':'+pad(secs%60);
+    var add=Math.floor(st.quiet/60)*2;            /* 每安静满1分钟 +2 分 */
+    var deduct=Math.floor(st.overSec/2);          /* 每超标满2秒 -1 分，四秒2分以此类推 */
+    var score=Math.max(0,Math.min(100, 100+add-deduct)); /* 原始分100，安静加分封顶100，超标扣分保底0 */
+    setScore(score);
+  }
+  function setScore(score){
+    var fill=Q('scoreFill'), val=Q('scoreVal'), g=Q('grade'), tip=Q('scoreTip'), hint=Q('scoreHint');
+    if(score==null){
+      fill.style.width='0%'; val.textContent='--';
+      g.textContent='待评估'; g.className='grade idle';
+      tip.textContent='—'; hint.textContent='开始监测后实时评估';
+      return;
+    }
+    fill.style.width=score+'%';
+    val.textContent=score; hint.textContent='每安静 1 分钟 +2 分，每超标 2 秒 −1 分';
+    var gl,tt;
+    if(score>=90){gl='卓越 S';tt='全场近乎无声，是全校自习的标杆班级。';}
+    else if(score>=80){gl='优秀 A';tt='保持得非常好，仅偶有细碎声响。';}
+    else if(score>=68){gl='良好 B';tt='整体安静有序，稍加提醒即可更上层楼。';}
+    else if(score>=52){gl='合格 C';tt='基本达标，建议班长加强巡视。';}
+    else {gl='待改进 D';tt='噪音偏多，全班需要立刻进入自习状态。';}
+    g.textContent=gl; g.className='grade';
+    tip.textContent=tt;
+  }
+  function pad(n){return (n<10?'0':'')+n}
+
+  /* ---------- 提示音 ---------- */
+  function beep(vol){
+    if(!st.ac) return;
+    var t=st.ac.currentTime,o=st.ac.createOscillator(),g=st.ac.createGain();
+    o.type='sine';o.frequency.value=880;
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol*0.25,t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.25);
+    o.connect(g);g.connect(st.ac.destination);o.start(t);o.stop(t+0.28);
+  }
+
+  /* ---------- 晚自习时段、自动匹配与倒计时 ---------- */
+  var PERIODS=['20:10','21:30','22:30'];      // 各节课下课时间，最后一段为 22:30
+  var BREAK_MIN=7;                            // 课间休息 7 分钟（不检测）
+  var TRANS_MIN=3;                            // 课间结束后过渡 3 分钟（自动检测·轻声讨论）
+  var THR_TALK=60, THR_WORK=52;               // 轻声讨论 / 独立作业 阈值
+  var cd={phase:'study',breakEnd:0,transEnd:0,endedFired:false,studyTarget:null,studyPeriod:null};
+  st.wantAutoRestart=false;
+
+  function autoPeriod(){
+    var now=new Date(),m=now.getHours()*60+now.getMinutes();
+    if(m<20*60+10) return '20:10';
+    if(m<21*60+30) return '21:30';
+    if(m<22*60+30) return '22:30';
+    return '20:10';
+  }
+  function nextPeriod(cur){
+    var i=PERIODS.indexOf(cur);
+    return PERIODS[(i<0?0:i+1)%PERIODS.length];
+  }
+  function fmtMS(sec){return pad(Math.floor(sec/60))+':'+pad(sec%60)}
+  function fmtHMS(sec){
+    var h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+    return pad(h)+':'+pad(m)+':'+pad(s);
+  }
+  function computeAndSetStudyTarget(){
+    var sel=Q('session').value, endStr, period;
+    if(sel==='auto'){ endStr=autoPeriod(); period=endStr; }
+    else if(sel==='custom'){ endStr=Q('endTime').value; period=null; }
+    else { endStr=sel; period=null; }
+    if(!endStr){ cd.studyTarget=null; cd.studyPeriod=null; return; }
+    var p=endStr.split(':'), now=new Date(), t=new Date(now);
+    t.setHours(+p[0],+p[1],0,0);
+    if(t.getTime()<=Date.now()) t.setDate(t.getDate()+1);
+    cd.studyTarget=t; cd.studyPeriod=period;
+  }
+  function setThreshold(v){
+    st.thr=v;
+    if(typeof thr!=='undefined' && thr && thr.set) thr.set(v);
+    Q('thrV').textContent=v+' dB';
+    var ps=Q('preset'); if([45,52,60,70].indexOf(v)>=0) ps.value=String(v);
+    renderReadout(isNaN(st.dispNum)?st.level:st.dispNum);
+  }
+
+  function tickCountdown(){
+    var el=Q('cdval'),lb=Q('cdlabel');
+
+    if(cd.phase==='ended'){
+      lb.textContent='已下课'; el.textContent='已下课'; el.classList.add('done');
+      return;
+    }
+    if(cd.phase==='break'){
+      var left=Math.ceil((cd.breakEnd-Date.now())/1000);
+      if(left<=0){
+        cd.phase='trans'; cd.transEnd=Date.now()+TRANS_MIN*60000;
+        setThreshold(THR_TALK);
+        if(!st.running) start();
+        lb.textContent='过渡·轻声讨论';
+        return;
+      }
+      lb.textContent='课间休息';
+      el.textContent=fmtMS(left); el.classList.add('done');
+      return;
+    }
+    if(cd.phase==='trans'){
+      var left2=Math.ceil((cd.transEnd-Date.now())/1000);
+      if(left2<=0){
+        setThreshold(THR_WORK);
+        cd.phase='study'; cd.endedFired=false;
+        computeAndSetStudyTarget();
+        lb.textContent='距下课'; el.classList.remove('done');
+        return;
+      }
+      lb.textContent='过渡·轻声讨论';
+      el.textContent=fmtMS(left2); el.classList.remove('done');
+      return;
+    }
+
+    if(Q('session').value==='auto'){
+      var nw=new Date(), nm=nw.getHours()*60+nw.getMinutes();
+      if(nm>=22*60+30){ cd.phase='ended';
+        lb.textContent='已下课'; el.textContent='已下课'; el.classList.add('done'); return; }
+    }
+    if(!cd.studyTarget) computeAndSetStudyTarget();
+    if(!cd.studyTarget){ el.textContent='未设下课时间'; el.classList.remove('done'); return; }
+    var diff=Math.floor((cd.studyTarget.getTime()-Date.now())/1000);
+    if(diff<=0){
+      el.textContent='已下课'; el.classList.add('done');
+      if(!cd.endedFired){
+        cd.endedFired=true;
+        if(st.running) stop();
+        if(Q('session').value==='custom' || cd.studyPeriod===PERIODS[PERIODS.length-1]){
+          cd.phase='ended';
+        }else{
+          cd.phase='break'; cd.breakEnd=Date.now()+BREAK_MIN*60000;
+        }
+      }
+    }else{
+      lb.textContent='距下课';
+      el.textContent=fmtHMS(diff); el.classList.remove('done');
+      cd.endedFired=false;
+    }
+  }
+  setInterval(tickCountdown,1000); tickCountdown();
+
+  /* ---------- 本地缓存（三个滑块档位） ---------- */
+  var PREF_KEY='yzj_prefs_v1';
+  var prefs={};try{prefs=JSON.parse(localStorage.getItem(PREF_KEY)||'{}')}catch(e){prefs={}}
+  /* ---------- iOS 风格自绘滑块 ---------- */
+  function createSlider(el,opts){
+    var min=opts.min,max=opts.max,step=opts.step||1,value=opts.value,dots=opts.dots||4;
+    for(var i=0;i<dots;i++){
+      var d=document.createElement('i');d.className='dot';
+      d.style.left='calc(6px + (100% - 12px) * '+(i/(dots-1))+')';el.appendChild(d);
+    }
+    var thumb=document.createElement('div');thumb.className='iosThumb';el.appendChild(thumb);
+    function render(){thumb.style.left=((value-min)/(max-min)*100)+'%'}
+    function setFromX(clientX){
+      var r=el.getBoundingClientRect();
+      var p=Math.min(1,Math.max(0,(clientX-r.left)/r.width));
+      var v=Math.round((min+p*(max-min))/step)*step;
+      v=Math.min(max,Math.max(min,v));
+      if(v!==value){value=v;render();opts.onInput(v)}else render();
+    }
+    var dragging=false;
+    el.addEventListener('pointerdown',function(e){dragging=true;el.setPointerCapture(e.pointerId);setFromX(e.clientX)});
+    el.addEventListener('pointermove',function(e){if(dragging)setFromX(e.clientX)});
+    el.addEventListener('pointerup',function(){dragging=false});
+    el.addEventListener('pointercancel',function(){dragging=false});
+    render();
+    return {set:function(v){value=Math.min(max,Math.max(min,v));render();},get:function(){return value}};
+  }
+  function savePref(k,v){prefs[k]=v;try{localStorage.setItem(PREF_KEY,JSON.stringify(prefs))}catch(e){}}
+  var thrV0=(prefs.thr!=null?prefs.thr:45);
+  var calV0=(prefs.cal!=null?prefs.cal:85);
+  var smV0=(prefs.smv!=null?prefs.smv:70);
+  st.thr=thrV0; st.cal=calV0; st.smooth=0.05+(smV0/100)*0.68;
+  st.dispInt=100+(smV0/90)*1900;   /* 响应速度 → 读数刷新间隔：最灵敏约0.1秒，最平稳2秒 */
+  var thr=createSlider(Q('thr'),{min:30,max:90,value:thrV0,dots:4,onInput:function(v){
+    st.thr=v;Q('thrV').textContent=v+' dB';renderReadout(isNaN(st.dispNum)?st.level:st.dispNum);savePref('thr',v);
+    var ps=Q('preset'); if([45,52,60,70].indexOf(v)>=0)ps.value=String(v);}});
+  var cal=createSlider(Q('cal'),{min:70,max:115,value:calV0,dots:4,onInput:function(v){st.cal=v;Q('calV').textContent=v;savePref('cal',v);}});
+  var sm=createSlider(Q('sm'),{min:0,max:90,step:5,value:smV0,dots:4,onInput:function(v){
+    st.smooth=0.05+(v/100)*0.68;
+    st.dispInt=100+(v/90)*1900;
+    Q('smV').textContent=v<25?'灵敏':v<55?'较快':v<75?'中等':'平稳';savePref('smv',v);}});
+  Q('thrV').textContent=thrV0+' dB';
+  Q('calV').textContent=calV0;
+  Q('smV').textContent=smV0<25?'灵敏':smV0<55?'较快':smV0<75?'中等':'平稳';
+  Q('preset').value=(prefs.thr!=null&&[45,52,60,70].indexOf(prefs.thr)>=0)?String(prefs.thr):'45';
+  Q('preset').onchange=function(){ st.thr=+this.value; thr.set(+this.value);
+    Q('thrV').textContent=this.value+' dB'; savePref('thr',+this.value); };
+  Q('swSound').onclick=function(){ st.sound=!st.sound; this.classList.toggle('on',st.sound);
+    Q('swSoundTxt').textContent=st.sound?'已开启':'已关闭'; savePref('sound',st.sound); };
+  /* 声音提示：默认关闭；若浏览器缓存里有手动设置，则用手动值 */
+  st.sound=(prefs.sound!=null)?(prefs.sound===true):false;
+  Q('swSound').classList.toggle('on',st.sound);
+  Q('swSoundTxt').textContent=st.sound?'已开启':'已关闭';
+  Q('btnStart').onclick=function(){ tickCountdown(); start(); };
+  Q('btnStop').onclick=function(){ stop(); };
+  Q('session').onchange=function(){
+    cd.phase='study'; cd.endedFired=false; st.wantAutoRestart=false;
+    cd.studyTarget=null; cd.studyPeriod=null;
+    Q('customTimeRow').style.display=this.value==='custom'?'flex':'none';
+    computeAndSetStudyTarget();
+    tickCountdown();
+  };
+  Q('endTime').onchange=function(){
+    if(Q('session').value==='custom'){ cd.phase='study'; cd.endedFired=false;
+      cd.studyTarget=null; cd.studyPeriod=null; computeAndSetStudyTarget(); tickCountdown(); }
+  };
+  Q('btnReset').onclick=function(){
+    st.n=0;st.sum=0;st.max=0;st.min=999;st.quiet=0;st.over=0;st.above=false;st.hist=[];
+    st.quietStreak=0;st.maxQuiet=0;st.overSec=0;
+    st.logs=[]; st.logRun.active=false; st.logRun.logged=false; st.logRun.entry=null;
+    if(st.running) st.t0=performance.now();
+    saveLogs(); renderStats(0); drawTrend(); renderLogs();
+  };
+  Q('btnFocus').onclick=function(){
+    document.body.classList.toggle('focus');
+    this.textContent=document.body.classList.contains('focus')?'退出大屏':'专注大屏';
+    setTimeout(function(){fitVMeter();fitCanvas();drawTrend();},80);
+  };
+  /* 深浅色切换（默认浅色，按钮提示切到深色） */
+  Q('btnTheme').onclick=function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    var next=cur==='dark'?'light':'dark';
+    document.documentElement.setAttribute('data-theme',next);
+    this.textContent=next==='dark'?'浅色模式':'深色模式';
+    setTimeout(function(){fitVMeter();fitCanvas();drawTrend();},60);
+  };
+  window.addEventListener('resize',function(){ fitVMeter(); fitCanvas(); drawTrend(); });
+
+  loadLogs(); renderLogs();
+  fitVMeter(); fitCanvas(); drawTrend(); meterFrame();
+})();
+</script>
+</body>
+</html>
