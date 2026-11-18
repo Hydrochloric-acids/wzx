@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>音量检测-高二14班</title>
+<title>音量检测</title>
 <style>
   /* ========= 设计令牌（扁平化：纯色、无渐变、无阴影、无发光） ========= */
   :root,[data-theme="dark"]{
@@ -190,6 +190,7 @@
   #btnStart:hover{filter:brightness(1.1)}
   #btnStop{background:var(--bad);border-color:var(--bad);color:#fff}
   #btnStop:hover{filter:brightness(1.1)}
+  #btnStop.locked{background:#94a3b8!important;border-color:#94a3b8!important;color:#f1f5f9!important;cursor:not-allowed;opacity:.65;filter:none}
   button.ghost{
     flex:0 0 auto;min-width:88px;font-size:14px;padding:10px 14px;
     color:var(--sub);background:var(--card);border-color:var(--line);
@@ -302,7 +303,7 @@
 
 <header>
   <h1>音量检测</h1>
-  <div class="subtitle">高二14班专用</div>
+  <div class="subtitle">高二14班</div>
 </header>
 
 <div class="wrap">
@@ -436,7 +437,7 @@
     </div>
   </section>
 
-  <footer>Copyright © 2026 长乐一中 高二14班. 保留所有权利.</footer>
+  <footer>Copyright © 2026 长乐一中 高二14班.留所有权利。</footer>
 </div>
 
 <script>
@@ -449,7 +450,7 @@
           hist:[],lastSec:0,
           level:0,peak:-1,dispNum:NaN,
           dispInt:1000,lastDisp:0,quietStreak:0,maxQuiet:0,
-          logs:[],logRun:{active:false,startTime:'',startT:0,peak:0,dur:0,logged:false,entry:null}};
+          logs:[],logRun:{active:false,startTime:'',startT:0,peak:0,dur:0,logged:false,entry:null,overSec:0,lastOverT:0,date:''}};
 
   function Q(id){return document.getElementById(id)}
   var spl=Q('spl'),badge=Q('badge'),trend=Q('trend'),msg=Q('msg'),vm=Q('vmeter');
@@ -655,26 +656,33 @@
   }
   function trackOverLog(v,now){
     var R=st.logRun;
-    if(v>st.thr){
-      if(!R.active){ R.active=true; R.startT=now; var _d=new Date(); R.startTime=fmtClock(_d); R.date=fmtDate(_d); R.peak=v; R.dur=0; R.logged=false; R.entry=null; }
-      if(v>R.peak) R.peak=v;
-      R.dur=Math.round((now-R.startT)/1000);
-      if(R.dur>=4){
-        if(!R.logged){
-          R.entry={date:R.date, time:R.startTime, dur:R.dur, db:Math.round(R.peak)};
-          st.logs.unshift(R.entry);
-          if(st.logs.length>1000) st.logs.pop();
-          R.logged=true;
-        }else{
-          /* 超标仍在继续：把这条日志的时长/峰值实时延长更新到实际值 */
-          R.entry.dur=R.dur; R.entry.db=Math.round(R.peak);
-        }
-        saveLogs(); renderLogs();
+    var GAP=2500; /* 两次超标之间短暂回落不超过此毫秒数，视为同一次超标累加 */
+    if(!R.active){
+      if(v>st.thr){
+        var _d=new Date();
+        R.active=true; R.startT=now; R.lastOverT=now;
+        R.startTime=fmtClock(_d); R.date=fmtDate(_d);
+        R.peak=v; R.overSec=1; R.dur=1; R.logged=false; R.entry=null;
       }
-    }else if(R.active){
-      /* 超标结束：最终时长/峰值已在持续期间实时同步，这里仅复位 */
-      R.active=false;
+      return;
     }
+    /* 仍超标：峰值取实时最大，累计实际超标秒数（短暂回落再超标也并入同一段） */
+    if(v>st.thr){ if(v>R.peak) R.peak=v; R.overSec++; R.lastOverT=now; }
+    R.dur=R.overSec; /* 记录实际超标时长 */
+    if(R.dur>=4){
+      if(!R.logged){
+        R.entry={date:R.date, time:R.startTime, dur:R.dur, db:Math.round(R.peak)};
+        st.logs.unshift(R.entry);
+        if(st.logs.length>1000) st.logs.pop();
+        R.logged=true;
+      }else{
+        /* 超标仍在继续：实时把实际时长/峰值延长更新到真实值 */
+        R.entry.dur=R.dur; R.entry.db=Math.round(R.peak);
+      }
+      saveLogs(); renderLogs();
+    }
+    /* 安静超过 GAP 毫秒仍未再超标，判定本段结束 */
+    if(now-R.lastOverT>GAP){ R.active=false; }
   }
   function renderLogs(){
     var list=Q('logList'), cnt=Q('logCount');
@@ -776,12 +784,12 @@
       return;
     }
     fill.style.width=score+'%';
-    val.textContent=score; hint.textContent='每安静 1 分钟 +2 分，每超标 2 秒 −1 分';
+    val.textContent=score; hint.textContent='每安静1分钟加2分，每超标2秒减1分';
     var gl,tt;
     if(score>=90){gl='卓越 S';tt='全场近乎无声，是全校自习的标杆班级。';}
     else if(score>=80){gl='优秀 A';tt='保持得非常好，仅偶有细碎声响。';}
     else if(score>=68){gl='良好 B';tt='整体安静有序，稍加提醒即可更上层楼。';}
-    else if(score>=52){gl='合格 C';tt='基本达标，建议班长加强巡视。';}
+    else if(score>=52){gl='合格 C';tt='基本达标，建议值周生加强巡视。';}
     else {gl='待改进 D';tt='噪音偏多，全班需要立刻进入自习状态。';}
     g.textContent=gl; g.className='grade';
     tip.textContent=tt;
@@ -957,7 +965,7 @@
   Q('swSound').classList.toggle('on',st.sound);
   Q('swSoundTxt').textContent=st.sound?'已开启':'已关闭';
   Q('btnStart').onclick=function(){ tickCountdown(); start(); };
-  Q('btnStop').onclick=function(){ stop(); };
+  Q('btnStop').onclick=function(){ if(this.disabled) return; stop(); };
   Q('session').onchange=function(){
     cd.phase='study'; cd.endedFired=false; st.wantAutoRestart=false;
     cd.studyTarget=null; cd.studyPeriod=null;
@@ -972,13 +980,15 @@
   Q('btnReset').onclick=function(){
     st.n=0;st.sum=0;st.max=0;st.min=999;st.quiet=0;st.over=0;st.above=false;st.hist=[];
     st.quietStreak=0;st.maxQuiet=0;st.overSec=0;
-    st.logs=[]; st.logRun.active=false; st.logRun.logged=false; st.logRun.entry=null;
+    st.logs=[]; st.logRun.active=false; st.logRun.logged=false; st.logRun.entry=null; st.logRun.overSec=0; st.logRun.lastOverT=0;
     if(st.running) st.t0=performance.now();
     saveLogs(); renderStats(0); drawTrend(); renderLogs();
   };
   Q('btnFocus').onclick=function(){
-    document.body.classList.toggle('focus');
-    this.textContent=document.body.classList.contains('focus')?'退出大屏':'专注大屏';
+    var on=document.body.classList.toggle('focus');
+    this.textContent=on?'退出大屏':'专注大屏';
+    var bs=Q('btnStop');
+    if(bs){ bs.disabled=on; bs.classList.toggle('locked',on); }
     setTimeout(function(){fitVMeter();fitCanvas();drawTrend();},80);
   };
   /* 深浅色切换（默认浅色，按钮提示切到深色） */
