@@ -430,7 +430,7 @@
   </section>
 
   <!-- 超标日志 -->
-  <section class="card no-focus" id="logCard">
+  <section class="card" id="logCard">
     <h2>超标日志<span class="logCount" id="logCount">(0)</span></h2>
     <div class="logList" id="logList">
       <div class="logEmpty">暂无超标记录（连续超标达 4 秒将自动记录）</div>
@@ -773,10 +773,12 @@
     Q('sOver').textContent=st.logCount;
     Q('sTime').textContent=pad(Math.floor(secs/60))+':'+pad(secs%60);
     var deduct=st.logCount*5;                     /* 被日志记录一次扣 5 分 */
-    var score=Math.max(0,Math.min(100, 100-deduct)); /* 原始分100，安静不加分，扣分保底0 */
-    setScore(score);
+    var quietBonus=Math.floor(st.quiet/300);      /* 安静每满5分钟加1分 */
+    var rawScore=100 - deduct + quietBonus;
+    var score=Math.max(0,Math.min(100, rawScore)); /* 原始分100，安静加分封顶100，扣分保底0 */
+    setScore(score, quietBonus, deduct);
   }
-  function setScore(score){
+  function setScore(score, quietBonus, deduct){
     var fill=Q('scoreFill'), val=Q('scoreVal'), g=Q('grade'), tip=Q('scoreTip'), hint=Q('scoreHint');
     if(score==null){
       fill.style.width='0%'; val.textContent='--';
@@ -784,8 +786,8 @@
       tip.textContent='—'; hint.textContent='开始监测后实时评估';
       return;
     }
-    fill.style.width=score+'%';
-    val.textContent=score; hint.textContent='被记录一次超标扣 5 分，安静不加分';
+    fill.style.width=Math.min(score,100)+'%';
+    val.textContent=score; hint.textContent='被记录一次超标扣5分，安静每5分钟加1分';
     var gl,tt;
     if(score>=90){gl='卓越 S';tt='全场近乎无声，是全校自习的标杆班级。';}
     else if(score>=80){gl='优秀 A';tt='保持得非常好，仅偶有细碎声响。';}
@@ -812,7 +814,7 @@
   var PERIODS=['20:10','21:30','22:30'];      // 各节课下课时间，最后一段为 22:30
   var BREAK_MIN=7;                            // 课间休息 7 分钟（不检测）
   var TRANS_MIN=3;                            // 课间结束后过渡 3 分钟（自动检测·轻声讨论）
-  var THR_TALK=60, THR_WORK=52;               // 轻声讨论 / 独立作业 阈值
+  var THR_TALK=60, THR_WORK=45;               // 轻声讨论 / 独立作业 阈值
   var cd={phase:'study',breakEnd:0,transEnd:0,endedFired:false,studyTarget:null,studyPeriod:null};
   st.wantAutoRestart=false;
 
