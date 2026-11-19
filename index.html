@@ -449,7 +449,7 @@
           t0:0,n:0,sum:0,max:0,min:999,quiet:0,overSec:0,over:0,above:false,lastBeep:0,
           hist:[],lastSec:0,
           level:0,peak:-1,dispNum:NaN,
-          dispInt:1000,lastDisp:0,quietStreak:0,maxQuiet:0,
+          dispInt:1000,lastDisp:0,quietStreak:0,maxQuiet:0,logCount:0,
           logs:[],logRun:{active:false,startTime:'',startT:0,peak:0,dur:0,logged:false,entry:null,overSec:0,lastOverT:0,date:''}};
 
   function Q(id){return document.getElementById(id)}
@@ -625,9 +625,9 @@
         st.quietStreak++;
         if(st.quietStreak>st.maxQuiet) st.maxQuiet=st.quietStreak;
       }else{
-        st.quietStreak=0; st.overSec++;
+        st.overSec++;
       }
-      if(v>st.thr && !st.above){ st.over++; st.above=true; if(st.sound) beep(1); }
+      if(v>st.thr && !st.above){ st.above=true; if(st.sound) beep(1); }
       else if(v<=st.thr-3) st.above=false;
       trackOverLog(v, now);
       st.hist.push({v:v});
@@ -675,6 +675,8 @@
         st.logs.unshift(R.entry);
         if(st.logs.length>1000) st.logs.pop();
         R.logged=true;
+        st.logCount++;    /* 被日志记录一次 */
+        st.quietStreak=0; /* 最长安静时间以被日志记录才中断 */
       }else{
         /* 超标仍在继续：实时把实际时长/峰值延长更新到真实值 */
         R.entry.dur=R.dur; R.entry.db=Math.round(R.peak);
@@ -768,11 +770,10 @@
     Q('sMin').textContent=fmtMS(st.maxQuiet);
     var q=Math.round(st.quiet/st.n*100);
     Q('sQuiet').textContent=q+'%';
-    Q('sOver').textContent=st.over;
+    Q('sOver').textContent=st.logCount;
     Q('sTime').textContent=pad(Math.floor(secs/60))+':'+pad(secs%60);
-    var add=Math.floor(st.quiet/60)*2;            /* 每安静满1分钟 +2 分 */
-    var deduct=Math.floor(st.overSec/2);          /* 每超标满2秒 -1 分，四秒2分以此类推 */
-    var score=Math.max(0,Math.min(100, 100+add-deduct)); /* 原始分100，安静加分封顶100，超标扣分保底0 */
+    var deduct=st.logCount*5;                     /* 被日志记录一次扣 5 分 */
+    var score=Math.max(0,Math.min(100, 100-deduct)); /* 原始分100，安静不加分，扣分保底0 */
     setScore(score);
   }
   function setScore(score){
@@ -784,7 +785,7 @@
       return;
     }
     fill.style.width=score+'%';
-    val.textContent=score; hint.textContent='每安静1分钟加2分，每超标2秒减1分';
+    val.textContent=score; hint.textContent='被记录一次超标扣 5 分，安静不加分';
     var gl,tt;
     if(score>=90){gl='卓越 S';tt='全场近乎无声，是全校自习的标杆班级。';}
     else if(score>=80){gl='优秀 A';tt='保持得非常好，仅偶有细碎声响。';}
@@ -979,7 +980,7 @@
   };
   Q('btnReset').onclick=function(){
     st.n=0;st.sum=0;st.max=0;st.min=999;st.quiet=0;st.over=0;st.above=false;st.hist=[];
-    st.quietStreak=0;st.maxQuiet=0;st.overSec=0;
+    st.quietStreak=0;st.maxQuiet=0;st.overSec=0;st.logCount=0;
     st.logs=[]; st.logRun.active=false; st.logRun.logged=false; st.logRun.entry=null; st.logRun.overSec=0; st.logRun.lastOverT=0;
     if(st.running) st.t0=performance.now();
     saveLogs(); renderStats(0); drawTrend(); renderLogs();
